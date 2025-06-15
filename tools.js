@@ -90,18 +90,25 @@ function runMultiCoreTest() {
 
 // 💾 Memory Stress Test
 function runMemoryTest() {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const maxChunks = isMobile ? 20 : 100; // Much smaller for mobile
+
   let total = 0;
+  const arrays = [];
+
   try {
-    const arrays = [];
-    for (let i = 0; i < 1000; i++) {
-      arrays.push(new Array(1e6).fill(0));
+    for (let i = 0; i < maxChunks; i++) {
+      arrays.push(new Array(1e6).fill(0)); // ~8MB each
       total++;
     }
+
+    const allocatedMB = (total * 1e6 * 8 / (1024 * 1024)).toFixed(2);
     document.getElementById("memoryResult").innerText =
-      `✅ Successfully allocated ${total * 1e6} entries (~${(total * 1e6 * 8 / (1024 * 1024)).toFixed(2)} MB).`;
+      `✅ Allocated ${total * 1e6} entries (~${allocatedMB} MB) without crashing.`;
   } catch (e) {
+    const safeMB = (total * 1e6 * 8 / (1024 * 1024)).toFixed(2);
     document.getElementById("memoryResult").innerText =
-      `❌ Failed after ${total * 1e6} entries (~${(total * 1e6 * 8 / (1024 * 1024)).toFixed(2)} MB).`;
+      `⚠️ Stopped after ${total * 1e6} entries (~${safeMB} MB). Error: ${e.message}`;
   }
 }
 
