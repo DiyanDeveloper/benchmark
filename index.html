@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detailed Benchmark Tool</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <h1>🔍 Detailed HTML5 Benchmark Tool</h1>
+  <button id="runBtn" class="btn-run">Run Benchmark</button>
+
+  <div id="hardware" class="results"></div>
+  <canvas id="benchmarkCanvas" width="400" height="200" style="display:none;"></canvas>
+  <div id="results" class="results">
+    <em>Click "Run Benchmark" to start tests...</em>
+  </div>
+
+  <hr />
+  <h2>Tools</h2>
+  <div class="tool">
+    <button onclick="runNetworkTest()">🌐 Network Speed Test</button>
+    <div id="networkResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="getBatteryInfo()">🔋 Battery Info</button>
+    <div id="batteryResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="getGPUInfo()">🖥 GPU Info</button>
+    <div id="gpuResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="runMultiCoreTest()">🧠 Multicore Test</button>
+    <div id="coreResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="runMemoryTest()">💾 Memory Stress Test</button>
+    <div id="memoryResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="startInputLatencyTest()">⌨️ Input Latency</button>
+    <div id="inputLatencyResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="checkSensors()">📱 Sensor Access</button>
+    <div id="sensorResult" class="tool-result"></div>
+  </div>
+  <div class="tool">
+    <button onclick="vramTest()">🎮 VRAM Fill Test</button>
+    <div id="vramResult" class="tool-result"></div>
+  </div>
+
+  <a href="https://github.com/DiyanDeveloper/benchmark/issues" target="_blank" id="feedback-btn" aria-label="Give feedback">Give Feedback</a>
+
+  <script src="benchmark.js"></script>
+  <script src="tools.js"></script>
+</body>
+</html>
