@@ -169,3 +169,48 @@ function vramTest() {
     document.getElementById("vramResult").innerText = "❌ VRAM test failed.";
   }
 }
+
+// 💀 Crash Test - Flood VRAM with 8GB textures
+function crashTest() {
+  const resultEl = document.getElementById("crashResult");
+  resultEl.innerHTML = "⚠️ Attempting to allocate 8GB of VRAM...";
+  
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl");
+    const texList = [];
+    const textureSize = 4096; // Very large texture size (4k x 4k)
+    const targetMB = 8192; // 8GB target
+    const texturesPerMB = 1024 * 1024 / (textureSize * textureSize * 4);
+    const targetTextures = Math.ceil(targetMB * texturesPerMB);
+
+    resultEl.innerHTML += `<br>Creating ${targetTextures} textures...`;
+    
+    for (let i = 0; i < targetTextures; i++) {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(
+        gl.TEXTURE_2D, 
+        0, 
+        gl.RGBA, 
+        textureSize, 
+        textureSize, 
+        0, 
+        gl.RGBA, 
+        gl.UNSIGNED_BYTE, 
+        null
+      );
+      texList.push(tex);
+      
+      // Update progress every 100 textures
+      if (i % 100 === 0) {
+        const allocatedMB = (i / texturesPerMB).toFixed(2);
+        resultEl.innerHTML = `Allocated ${allocatedMB} MB of VRAM...`;
+      }
+    }
+    
+    resultEl.innerHTML = `✅ Allocated ~8GB VRAM (${targetTextures} textures).`;
+  } catch (e) {
+    resultEl.innerHTML = `💀 Crashed or failed: ${e.message}`;
+  }
+}
