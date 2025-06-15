@@ -2,7 +2,7 @@
 
 // 🌐 Improved Network Speed Test (fixed URL with CORS support)
 async function runNetworkTest() {
-  const url = 'https://speed.hetzner.de/1GB.bin';
+  const url = 'https://cachefly.cachefly.net/100mb.test'; // 100MB test file
   const startTime = performance.now();
   let bytesReceived = 0;
 
@@ -30,6 +30,8 @@ async function runNetworkTest() {
     document.getElementById('networkResult').innerText = `Network test failed: ${err.message}`;
   }
 }
+
+
 
 
 // 🔋 Battery Info
