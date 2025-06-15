@@ -2,7 +2,7 @@
 
 // 🌐 Improved Network Speed Test (fixed URL with CORS support)
 async function runNetworkTest() {
-  const testUrl = "https://speed.hetzner.de/100MB.bin"; // reliable public test file with CORS
+ const testUrl = "https://nbg1-speed.hetzner.com/100MB.bin"; // your preferred test file URL with CORS
   const startTime = performance.now();
 
   try {
