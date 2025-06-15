@@ -2,33 +2,35 @@
 
 // 🌐 Improved Network Speed Test (fixed URL with CORS support)
 async function runNetworkTest() {
- const testUrl = "https://nbg1-speed.hetzner.com/100MB.bin"; // your preferred test file URL with CORS
+  const url = 'https://speed.hetzner.de/1GB.bin';
   const startTime = performance.now();
+  let bytesReceived = 0;
 
   try {
-    const response = await fetch(testUrl, { cache: "no-store" });
-    if (!response.ok) throw new Error('Network response not ok');
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.body) throw new Error('ReadableStream not supported');
 
     const reader = response.body.getReader();
-    let received = 0;
-    const start = performance.now();
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      received += value.length;
+      bytesReceived += value.length;
     }
 
-    const duration = (performance.now() - start) / 1000; // seconds
-    const speedMbps = ((received * 8) / duration / 1024 / 1024).toFixed(2);
-    document.getElementById("networkResult").innerHTML = `
-      <strong>Download Speed:</strong> ${speedMbps} Mbps<br>
-      <strong>Time Taken:</strong> ${duration.toFixed(2)} seconds
+    const duration = (performance.now() - startTime) / 1000;
+    const mbps = ((bytesReceived * 8) / duration / (1024 * 1024)).toFixed(2);
+
+    document.getElementById('networkResult').innerHTML = `
+      <strong>Download Speed:</strong> ${mbps} Mbps<br>
+      <strong>Time Taken:</strong> ${duration.toFixed(2)} seconds<br>
+      <strong>Data Downloaded:</strong> ${(bytesReceived / (1024*1024)).toFixed(2)} MB
     `;
-  } catch (error) {
-    document.getElementById("networkResult").innerText = "❌ Network test failed: " + error.message;
+  } catch (err) {
+    document.getElementById('networkResult').innerText = `Network test failed: ${err.message}`;
   }
 }
+
 
 // 🔋 Battery Info
 function getBatteryInfo() {
