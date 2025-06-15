@@ -1,227 +1,189 @@
 // tools.js
 
-// NETWORK SPEED TEST (Download simulation)
+// 🌐 Improved Network Speed Test (fixed URL with CORS support)
 async function runNetworkTest() {
-  const output = document.getElementById('networkResult');
-  output.textContent = 'Running network speed test...';
+  const testUrl = "https://speed.hetzner.de/100MB.bin"; // reliable public test file with CORS
+  const startTime = performance.now();
 
   try {
-    // Download a random small image multiple times to simulate speed
-    const url = 'https://speed.hetzner.de/100MB.bin'; // Public test file, can change to smaller if needed
+    const response = await fetch(testUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error('Network response not ok');
+
+    const reader = response.body.getReader();
+    let received = 0;
     const start = performance.now();
-    // Fetch first 1MB chunk only (range header)
-    const response = await fetch(url, { headers: { Range: 'bytes=0-1048575' } });
-    const blob = await response.blob();
-    const end = performance.now();
 
-    const sizeMB = blob.size / (1024 * 1024);
-    const durationSec = (end - start) / 1000;
-    const speedMbps = (sizeMB * 8) / durationSec;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.length;
+    }
 
-    output.textContent = `Download: ${sizeMB.toFixed(2)} MB in ${durationSec.toFixed(2)} s (~${speedMbps.toFixed(2)} Mbps)`;
-  } catch (e) {
-    output.textContent = 'Network test failed: ' + e.message;
+    const duration = (performance.now() - start) / 1000; // seconds
+    const speedMbps = ((received * 8) / duration / 1024 / 1024).toFixed(2);
+    document.getElementById("networkResult").innerHTML = `
+      <strong>Download Speed:</strong> ${speedMbps} Mbps<br>
+      <strong>Time Taken:</strong> ${duration.toFixed(2)} seconds
+    `;
+  } catch (error) {
+    document.getElementById("networkResult").innerText = "❌ Network test failed: " + error.message;
   }
 }
 
-// BATTERY INFO
+// 🔋 Battery Info
 function getBatteryInfo() {
-  const output = document.getElementById('batteryResult');
-  output.textContent = 'Fetching battery info...';
-
   if (!navigator.getBattery) {
-    output.textContent = 'Battery API not supported in this browser.';
+    document.getElementById("batteryResult").innerText = "Battery API not supported.";
     return;
   }
-
   navigator.getBattery().then(battery => {
-    let status = `Charging: ${battery.charging ? 'Yes' : 'No'}\n`;
-    status += `Level: ${(battery.level * 100).toFixed(1)}%\n`;
-    status += `Charging time: ${battery.chargingTime === Infinity ? 'N/A' : battery.chargingTime + ' s'}\n`;
-    status += `Discharging time: ${battery.dischargingTime === Infinity ? 'N/A' : battery.dischargingTime + ' s'}`;
-    output.textContent = status;
-  }).catch(err => {
-    output.textContent = 'Failed to get battery info: ' + err.message;
+    document.getElementById("batteryResult").innerHTML = `
+      <ul>
+        <li>Level: ${(battery.level * 100).toFixed(0)}%</li>
+        <li>Charging: ${battery.charging}</li>
+        <li>Charging Time: ${battery.chargingTime}s</li>
+        <li>Discharging Time: ${battery.dischargingTime}s</li>
+      </ul>
+    `;
+  }).catch(() => {
+    document.getElementById("batteryResult").innerText = "Failed to get battery info.";
   });
 }
 
-// GPU INFO (WebGL Renderer)
+// 🖥 GPU Info
 function getGPUInfo() {
-  const output = document.getElementById('gpuResult');
   const canvas = document.createElement('canvas');
-  let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-
+  const gl = canvas.getContext('webgl');
   if (!gl) {
-    output.textContent = 'WebGL not supported';
+    document.getElementById("gpuResult").innerText = "WebGL not supported.";
     return;
   }
-
   const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-  if (debugInfo) {
-    const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-    output.textContent = `Vendor: ${vendor}\nRenderer: ${renderer}`;
-  } else {
-    output.textContent = 'WEBGL_debug_renderer_info extension not supported.';
+  const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "Unknown";
+  const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : "Unknown";
+  document.getElementById("gpuResult").innerHTML = `
+    <ul>
+      <li>Renderer: ${renderer}</li>
+      <li>Vendor: ${vendor}</li>
+    </ul>
+  `;
+}
+
+// 🧠 Multicore Threading Test
+function runMultiCoreTest() {
+  const threads = navigator.hardwareConcurrency || 4;
+  let completed = 0;
+  const start = performance.now();
+
+  for (let i = 0; i < threads; i++) {
+    const blob = new Blob([`onmessage=function(){let x=0;for(let i=0;i<1e7;i++){x+=i}postMessage(x);}`]);
+    const worker = new Worker(URL.createObjectURL(blob));
+    worker.onmessage = () => {
+      completed++;
+      if (completed === threads) {
+        const end = performance.now();
+        document.getElementById("coreResult").innerText = `Multithreaded task completed in ${(end - start).toFixed(2)} ms using ${threads} cores.`;
+      }
+    };
+    worker.postMessage('go');
   }
 }
 
-// MULTICORE TEST (Simple CPU load test)
-function runMultiCoreTest() {
-  const output = document.getElementById('coreResult');
-  output.textContent = 'Running multicore test...';
-
-  const cores = navigator.hardwareConcurrency || 4;
-  output.textContent = `Detected ${cores} logical CPU cores. Running stress test...`;
-
-  // Run a CPU-intensive task on multiple Web Workers (if supported)
-  if (!window.Worker) {
-    output.textContent += '\nWeb Workers not supported, running single-thread test.';
-    singleThreadCPUTest().then(result => {
-      output.textContent += `\nSingle-thread test duration: ${result} ms`;
-    });
-    return;
+// 💾 Memory Stress Test
+function runMemoryTest() {
+  let total = 0;
+  try {
+    const arrays = [];
+    for (let i = 0; i < 1000; i++) {
+      arrays.push(new Array(1e6).fill(0));
+      total++;
+    }
+    document.getElementById("memoryResult").innerText = `Allocated ${total * 1e6} entries successfully.`;
+  } catch (e) {
+    document.getElementById("memoryResult").innerText = `Failed after allocating ${total * 1e6} entries.`;
   }
+}
 
-  const workers = [];
-  const workerCode = `
-    self.onmessage = function() {
-      const start = performance.now();
-      let total = 0;
-      for (let i = 0; i < 1e7; i++) {
-        total += Math.sqrt(i);
-      }
-      const duration = performance.now() - start;
-      self.postMessage(duration);
-      self.close();
-    };
+// ⌨️ Mobile-friendly Input Latency Test
+function startInputLatencyTest() {
+  const resultEl = document.getElementById("inputLatencyResult");
+  resultEl.innerHTML = `
+    <button id="latencyBtn" style="
+      font-size: 1.4em; 
+      padding: 15px 30px; 
+      border-radius: 10px; 
+      width: 100%; 
+      max-width: 300px; 
+      cursor: pointer;
+      user-select: none;
+    ">Start Input Latency Test</button>
+    <div id="latencyStats" style="margin-top: 15px; font-size: 1.1em;"></div>
   `;
 
-  const blob = new Blob([workerCode], { type: 'application/javascript' });
-  const url = URL.createObjectURL(blob);
-  let finished = 0;
-  const durations = [];
+  const btn = document.getElementById("latencyBtn");
+  const stats = document.getElementById("latencyStats");
+  let lastTime = null;
+  let clicks = 0;
+  const maxClicks = 10;
 
-  return new Promise(resolve => {
-    for (let i = 0; i < cores; i++) {
-      const w = new Worker(url);
-      workers.push(w);
-      w.onmessage = e => {
-        durations.push(e.data);
-        finished++;
-        if (finished === cores) {
-          const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-          output.textContent += `\nAll workers finished. Average duration: ${avg.toFixed(2)} ms`;
-          URL.revokeObjectURL(url);
-          resolve(avg);
-        }
-      };
-      w.postMessage('');
+  btn.onclick = () => {
+    const now = performance.now();
+    if (lastTime !== null) {
+      const latency = (now - lastTime).toFixed(2);
+      clicks++;
+      stats.innerHTML = `Clicks: ${clicks} / ${maxClicks}<br>Last latency: ${latency} ms`;
+      recordLatency(latency);
+
+      if (clicks >= maxClicks) {
+        btn.disabled = true;
+        btn.innerText = "Test Complete";
+        stats.innerHTML += `<br>Average latency: ${calculateAverageLatency()} ms`;
+      }
+    } else {
+      clicks = 1;
+      stats.innerHTML = `Clicks: ${clicks} / ${maxClicks}<br>Last latency: N/A (first click)`;
     }
-  });
-}
+    lastTime = now;
+  };
 
-async function singleThreadCPUTest() {
-  const start = performance.now();
-  let total = 0;
-  for (let i = 0; i < 1e7; i++) {
-    total += Math.sqrt(i);
+  const latencies = [];
+  function recordLatency(latency) {
+    latencies.push(parseFloat(latency));
   }
-  const duration = performance.now() - start;
-  return duration.toFixed(2);
+
+  function calculateAverageLatency() {
+    if (latencies.length === 0) return 'N/A';
+    const sum = latencies.reduce((a, b) => a + b, 0);
+    return (sum / latencies.length).toFixed(2);
+  }
 }
 
-// MEMORY TEST (allocate and release arrays)
-function runMemoryTest() {
-  const output = document.getElementById('memoryResult');
-  output.textContent = 'Running memory stress test...';
+// 📱 Sensor Access
+function checkSensors() {
+  let result = "";
+  if ('DeviceOrientationEvent' in window) result += "Orientation Supported\n";
+  if ('DeviceMotionEvent' in window) result += "Motion Supported\n";
+  document.getElementById("sensorResult").innerText = result || "No sensors available.";
+}
 
+// 🎮 VRAM Fill Test
+function vramTest() {
   try {
-    const arrs = [];
-    const start = performance.now();
-    for (let i = 0; i < 50; i++) {
-      arrs.push(new Array(1e6).fill(i));
-    }
-    const mid = performance.now();
-    arrs.length = 0; // release
-    const end = performance.now();
-    output.textContent = `Allocated and filled 50 million elements.\nAllocation took ${(mid - start).toFixed(2)} ms.\nRelease took ${(end - mid).toFixed(2)} ms.`;
-  } catch (e) {
-    output.textContent = 'Memory test failed: ' + e.message;
-  }
-}
-
-// INPUT LATENCY TEST (measures time between keypress and rendering)
-function startInputLatencyTest() {
-  const output = document.getElementById('inputLatencyResult');
-  output.textContent = `Press any key and see latency measurement (Press ESC to stop)...`;
-
-  let lastTime = 0;
-  function onKeyDown(e) {
-    if (e.key === 'Escape') {
-      output.textContent += '\nInput latency test stopped.';
-      window.removeEventListener('keydown', onKeyDown);
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl");
+    if (!gl) {
+      document.getElementById("vramResult").innerText = "WebGL not supported.";
       return;
     }
-    const start = performance.now();
-    requestAnimationFrame(() => {
-      const latency = performance.now() - start;
-      output.textContent = `Key "${e.key}" latency: ${latency.toFixed(2)} ms\n(Press ESC to stop)`;
-    });
+    const texList = [];
+    for (let i = 0; i < 1000; i++) {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      texList.push(tex);
+    }
+    document.getElementById("vramResult").innerText = `Filled approx. ${(texList.length * 512 * 512 * 4 / 1024 / 1024).toFixed(1)} MB of VRAM.`;
+  } catch (e) {
+    document.getElementById("vramResult").innerText = "VRAM test failed.";
   }
-  window.addEventListener('keydown', onKeyDown);
-}
-
-// SENSOR INFO (if available)
-function checkSensors() {
-  const output = document.getElementById('sensorResult');
-  output.textContent = 'Checking for available sensors...\n';
-
-  // Device Orientation
-  if ('DeviceOrientationEvent' in window) {
-    output.textContent += 'DeviceOrientationEvent is supported.\n';
-  } else {
-    output.textContent += 'DeviceOrientationEvent not supported.\n';
-  }
-
-  // Device Motion
-  if ('DeviceMotionEvent' in window) {
-    output.textContent += 'DeviceMotionEvent is supported.\n';
-  } else {
-    output.textContent += 'DeviceMotionEvent not supported.\n';
-  }
-
-  // Ambient Light Sensor (experimental)
-  if ('AmbientLightSensor' in window) {
-    output.textContent += 'AmbientLightSensor is supported.\n';
-  } else {
-    output.textContent += 'AmbientLightSensor not supported.\n';
-  }
-}
-
-// VRAM FILL TEST (draw many large rectangles on canvas)
-function vramTest() {
-  const output = document.getElementById('vramResult');
-  output.textContent = 'Starting VRAM fill test...';
-
-  const canvas = document.getElementById('benchmarkCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 400;
-  canvas.height = 200;
-
-  const start = performance.now();
-
-  // Draw 200 large rectangles randomly
-  for (let i = 0; i < 200; i++) {
-    ctx.fillStyle = `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},0.8)`;
-    ctx.fillRect(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height,
-      50,
-      50
-    );
-  }
-
-  const end = performance.now();
-  output.textContent = `Drew 200 large rectangles in ${(end - start).toFixed(2)} ms.`;
 }
